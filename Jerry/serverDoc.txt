@@ -1,0 +1,39 @@
+🔹 Level 1: Core HTTP Server
+Feature	                    What It Means	                                Why It Matters
+===========================================================================================
+
+1. TCP Socket Listener	    Listens for incoming TCP connections	            This is how clients (browsers) connect to the server
+2. HTTP Request Parser	    Parses request line, headers, and body	            So the server can understand what the client wants
+3. Response Formatter	    Sends properly formatted HTTP responses	            Browsers expect a strict format like HTTP/1.1 200 OK
+4. Routing	                Maps URLs (e.g., /home) to handler logic	        Needed for multiple endpoints (like REST APIs)
+5. MIME Types/Content-Type	Tells browser what kind of data is sent (HTML, CSS, JSON)	Correct rendering in the browser
+
+🔹 Level 2: Static File Server
+===============================
+Feature	What It Means	                Why It Matters
+6. Serve Static Files	                Serve .html, .css, .js, .png, etc. from a folder	Needed for web pages, images, styles
+7. 404 Not Found Handling	            Custom message if a file or route is missing	Users should see helpful errors
+8. Content-Length Header	            Send size of response body	Required by HTTP/1.1 spec
+9. Persistent Connections (optional)	Support keep-alive	For performance (we can skip this initially)
+
+🔹 Level 3: HTTP Method Support
+Feature	What It Means	Why It Matters
+10. Support for GET / POST / PUT / DELETE	Understand and respond based on HTTP verb	Required for REST APIs
+11. Request Body Parsing (form/json)	Handle data sent in POST/PUT requests	Important for handling form submissions and APIs
+
+🔹 Level 4: Advanced Application Server
+Feature	What It Means	Why It Matters
+12. Templating Support (optional)	Generate HTML dynamically using templates	For rendering dynamic pages
+13. Custom Error Pages	Display friendly 500/404 pages	Better user experience
+14. Logging (Requests, Errors)	Log client IP, URL, status	For debugging and monitoring
+15. Concurrency (Thread Pool)	Handle multiple clients simultaneously	Scalable multi-client support
+16. Configuration File Support	Set port, static file path via config	Flexibility and clean separation
+
+🔹 Level 5: Mini-Tomcat-like Features
+Feature	What It Means	Why It Matters
+17. Servlet-Like Handler API	Define your own handler classes	Like Java Servlets — reuse logic
+18. ClassLoader Support	Load handler classes dynamically	Like Tomcat loading .class or .war files
+19. Hot Deployment (optional)	Reload code without restarting server	Developer productivity
+20. Session Management	Track users across requests	Needed for login, cart, etc.
+21. Cookie Parsing and Setting	Handle cookies sent/received	For sessions, preferences
+22. Security Headers	Set headers like X-Frame-Options	Basic security hardening
