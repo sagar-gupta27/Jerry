@@ -1,4 +1,4 @@
-package interfaces;
+package servlet.interfaces;
 
 import java.util.Enumeration;
 

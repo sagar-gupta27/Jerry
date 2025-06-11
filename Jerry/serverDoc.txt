@@ -37,3 +37,11 @@ Feature	What It Means	Why It Matters
 20. Session Management	Track users across requests	Needed for login, cart, etc.
 21. Cookie Parsing and Setting	Handle cookies sent/received	For sessions, preferences
 22. Security Headers	Set headers like X-Frame-Options	Basic security hardening
+
+
+*Selector is a watcher which can watch multiple channels for their readiness
+*ServerSocket is blocking I/O and doesn't support Selector
+*ServerSocketChannel is non-blocking I/O and support Selector
+
+*Thread-pool --> group of already created threads that can be reused
+*For each connected client to ServerSocket/ServerSocketChannel  a new socket/socketchannel is created.

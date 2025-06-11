@@ -2,25 +2,25 @@ package servlet.impl;
 
 import java.util.Enumeration;
 
-import interfaces.ServletRequest;
+import servlet.interfaces.ServletRequest;
 
 public  class HttpServletRequest implements ServletRequest{
 
   @Override
   public Object getAttributes(String name) {
-    // TODO Auto-generated method stub
+
     throw new UnsupportedOperationException("Unimplemented method 'getAttributes'");
   }
 
   @Override
   public Enumeration<String> getAttributeNames() {
-    // TODO Auto-generated method stub
+
     throw new UnsupportedOperationException("Unimplemented method 'getAttributeNames'");
   }
 
   @Override
   public String getCharacterEncoding() {
-    // TODO Auto-generated method stub
+
     throw new UnsupportedOperationException("Unimplemented method 'getCharacterEncoding'");
   }
 

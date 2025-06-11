@@ -4,8 +4,6 @@ import java.util.Enumeration;
 import java.util.EventListener;
 import java.util.Set;
 
-import servlet.impl.RequestDispatcher;
-
 /* 
  * 
  * Defines a set of methods that a servlet uses to communicate with its
