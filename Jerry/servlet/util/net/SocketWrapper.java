@@ -1,5 +1,7 @@
 package servlet.util.net;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
@@ -11,24 +13,15 @@ import java.util.concurrent.locks.ReentrantLock;
 import logging.Log;
 import logging.LogFactory;
 import servlet.util.StringManager;
+import servlet.util.buf.ApplicationBufferHandler;
 
 //Generic class to Wrap sockets of all type  
 public abstract class SocketWrapper<T> {
 
-    private static final Log log = LogFactory.getLog(SocketWrapper.class);
-
     protected static final StringManager sm = StringManager.getManager(SocketWrapper.class);
     protected T socket; // socket object
-    private static final AtomicLong connIdGenerator = new AtomicLong(0);
-    private final ReentrantLock lock = new ReentrantLock(); // mutual exclusion , thread already holding the lock and
-                                                            // re-enter , doesn't blocks itself
     protected final AtomicBoolean closed = new AtomicBoolean(false);
 
-    private volatile long readTimeout;
-    private volatile long writeTimeout;
-    private volatile int keepAliveLeft;
-    private final String connectionId;
-    private final AbstractEndPoint<T, ?> endpoint;
     /*
      * Following cached for speed / reduced GC
      */
@@ -40,13 +33,25 @@ public abstract class SocketWrapper<T> {
     protected int remotePort = -1;
     // protected volatile ServletConnection servletConnection = null;
     protected volatile SocketBufferWrapper socketBufferWrapper; // wrapper object to manage the bytebuffer
-    private final AtomicReference<Object> currentProcessor = new AtomicReference<>(); //
-
     // Asynchorous operations
     protected final Semaphore readPending;
     protected final Semaphore writePending;
     protected int bufferedWriteSize = 64 * 1024; // 64k default write buffer
-     protected final WriteBuffer nonBlockingWriteBuffer = new WriteBuffer(bufferedWriteSize);
+    protected final WriteBuffer nonBlockingWriteBuffer = new WriteBuffer(bufferedWriteSize);
+
+    private static final Log log = LogFactory.getLog(SocketWrapper.class);
+    private static final AtomicLong connIdGenerator = new AtomicLong(0);
+    private final ReentrantLock lock = new ReentrantLock(); // mutual exclusion , thread already holding the lock and
+                                                            // // re-enter , doesn't blocks itself
+
+    private volatile long readTimeout;
+    private volatile long writeTimeout;
+    private volatile int keepAliveLeft;
+    private final String connectionId;
+    private final AbstractEndPoint<T, ?> endpoint;
+    private volatile IOException error = null;
+    private final AtomicReference<Object> currentProcessor = new AtomicReference<>(); //
+    private String negotiatedProtocol = null;
 
     public SocketWrapper(T socket, AbstractEndPoint<T, ?> endpoint) {
         this.socket = socket;
@@ -54,7 +59,7 @@ public abstract class SocketWrapper<T> {
         if (endpoint.getUseAsyncIO() || needSemaphores()) {
             readPending = new Semaphore(1);
             writePending = new Semaphore(1);
-        }else{
+        } else {
             readPending = null;
             writePending = null;
         }
@@ -93,13 +98,37 @@ public abstract class SocketWrapper<T> {
         return currentProcessor.getAndSet(null);
     }
 
-    public void execute(Runnable task) throws Exception{
+    public void execute(Runnable task) throws Exception {
         ExecutorService executor = endpoint.getExecutor();
 
         if (!endpoint.isRunning() || executor == null) {
             throw new Exception();
         }
         executor.submit(task);
+    }
+
+    public IOException getError() {
+        return error;
+    }
+
+    public void setError(IOException error) {
+        if (this.error != null)
+            return;
+
+        this.error = error;
+    }
+
+    public void checkError() throws IOException {
+        if (error != null)
+            throw error;
+    }
+
+    public String getNegotiatedProtocol() {
+        return negotiatedProtocol;
+    }
+
+    public void setNegotiatedProtocol(String negotiatedProtocol) {
+        this.negotiatedProtocol = negotiatedProtocol;
     }
 
     public void setReadTimeout(long readTimeout) {
@@ -141,7 +170,6 @@ public abstract class SocketWrapper<T> {
         return remoteHost;
     }
 
-    protected abstract void populateRemoteHost();
 
     public String getRemoteAddr() {
         if (remoteAddr == null) {
@@ -150,16 +178,12 @@ public abstract class SocketWrapper<T> {
         return remoteAddr;
     }
 
-    protected abstract void populateRemoteAddr();
-
     public int getRemotePort() {
         if (remotePort == -1) {
             populateRemotePort();
         }
         return remotePort;
     }
-
-    protected abstract void populateRemotePort();
 
     public String getLocalName() {
         if (localName == null) {
@@ -168,8 +192,6 @@ public abstract class SocketWrapper<T> {
         return localName;
     }
 
-    protected abstract void populateLocalName();
-
     public String getLocalAddr() {
         if (localAddr == null) {
             populateLocalAddr();
@@ -177,7 +199,6 @@ public abstract class SocketWrapper<T> {
         return localAddr;
     }
 
-    protected abstract void populateLocalAddr();
 
     public int getLocalPort() {
         if (localPort == -1) {
@@ -186,6 +207,15 @@ public abstract class SocketWrapper<T> {
         return localPort;
     }
 
+    protected abstract void populateLocalAddr();
+
+    protected abstract void populateRemoteHost();
+
+    protected abstract void populateRemoteAddr();
+
+    protected abstract void populateRemotePort();
+
+    protected abstract void populateLocalName();
     protected abstract void populateLocalPort();
 
     public SocketBufferWrapper getSocketBufferWrapper() {
@@ -197,7 +227,7 @@ public abstract class SocketWrapper<T> {
     }
 
     public boolean hasDataToWrite() {
-        return !socketBufferWrapper.isWriteBufferEmpty() || nonBlockingWriteBuffer.isEmpty();
+        return !socketBufferWrapper.isWriteBufferEmpty() || !nonBlockingWriteBuffer.isEmpty();
     }
 
     public boolean isReadyForWrite() {
@@ -217,27 +247,44 @@ public abstract class SocketWrapper<T> {
         return socketBufferWrapper.isWriteBufferWritable() && nonBlockingWriteBuffer.isEmpty();
     }
 
+    public abstract int read(boolean block, byte[] b, int off, int len) throws IOException;
+
+    public abstract int read(boolean block, ByteBuffer to) throws IOException;
+
+    public abstract boolean isReadyForRead() throws IOException;
+
+    public abstract void setAppReadBufHandler(ApplicationBufferHandler handler);
+
     // Reading the buffer data
-    protected int copyToReadBuffer(byte[] buf , int off , int len){
-         socketBufferWrapper.configureReadBufferForRead();
-         ByteBuffer readBuffer = socketBufferWrapper.getReadBuffer();
+    protected int copyFromReadBuffer(byte[] dst, int off, int len) {
+        socketBufferWrapper.configureReadBufferForRead();
+        ByteBuffer readBuffer = socketBufferWrapper.getReadBuffer();
 
-         int remaining = readBuffer.remaining();
+        int remaining = readBuffer.remaining();
 
-         if(remaining > 0){
-            remaining = Math.min(remaining,len);
-            readBuffer.get(buf,off,len);
+        if (remaining > 0) {
+            remaining = Math.min(remaining, len);
+            readBuffer.get(dst, off, len);
 
-
-            if(log.isTraceEnabled()){
-               log.trace("Socket: [" + this + "], Read from buffer: [" + remaining + "]");
+            if (log.isTraceEnabled()) {
+                log.trace("Socket: [" + this + "], Read from buffer: [" + remaining + "]");
             }
-         }
+        }
 
-         return remaining;
+        return remaining;
 
-     }
+    }
 
+    protected int copyFromReadBuffer(ByteBuffer to) {
+        socketBufferWrapper.configureReadBufferForRead();
+        int nRead = transfer(socketBufferWrapper.getReadBuffer(), to);
+        return nRead;
+    }
+
+    public void unRead(ByteBuffer returnedInput) {
+        if (returnedInput != null)
+            socketBufferWrapper.unReadReadBuffer(returnedInput);
+    }
     public void close() {
         if (closed.compareAndSet(false, true)) {
             try {
@@ -263,13 +310,37 @@ public abstract class SocketWrapper<T> {
 
     public abstract void registerWriteInterest();
 
+    /*
+     * public ServletConnection getServletConnection(String protocol, String
+     * protocolConnectionId) {
+     * if (servletConnection == null) {
+     * servletConnection =
+     * new ServletConnectionImpl(connectionId, protocol, protocolConnectionId,
+     * endpoint.isSSLEnabled());
+     * }
+     * return servletConnection;
+     * }
+     */
 
-  /*   public ServletConnection getServletConnection(String protocol, String protocolConnectionId) {
-        if (servletConnection == null) {
-            servletConnection =
-                    new ServletConnectionImpl(connectionId, protocol, protocolConnectionId, endpoint.isSSLEnabled());
+    protected static int transfer(byte[] from, int offset, int length, ByteBuffer to) {
+        int max = Math.min(length, to.remaining());
+        if (max > 0) {
+            to.put(from, offset, max);
         }
-        return servletConnection;
-    } */
+        return max;
+    }
+
+    protected static int transfer(ByteBuffer from, ByteBuffer to) {
+        int max = Math.min(from.remaining(), to.remaining());
+        if (max > 0) {
+            int flimit = from.limit();
+            from.limit(from.position() + max); // in case not enough space in to , adjust the limit to transfer only
+                                               // max bytes
+            to.put(from);
+            from.limit(flimit);// restore the original limit
+        }
+
+        return max;
+    }
 
 }

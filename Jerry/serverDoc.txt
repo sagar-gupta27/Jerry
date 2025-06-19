@@ -45,3 +45,10 @@ Feature	What It Means	Why It Matters
 
 *Thread-pool --> group of already created threads that can be reused
 *For each connected client to ServerSocket/ServerSocketChannel  a new socket/socketchannel is created.
+
+
+What Are Negotiated Protocols?
+Negotiated protocols are communication protocols where two (or more) parties agree on 
+how to communicate by negotiating and selecting one or more compatible options (like encryption algorithms, protocol versions, compression schemes, etc.) at the start of the connection.
+
+This negotiation ensures both sides can understand each other and operate securely or efficiently.

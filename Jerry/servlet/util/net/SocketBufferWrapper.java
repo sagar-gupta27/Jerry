@@ -1,6 +1,9 @@
 package servlet.util.net;
 
+import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
+
+import servlet.util.buf.ByteBufferUtility;
 
 public class SocketBufferWrapper {
     private volatile boolean readBufferConfiguredForWrite = true;
@@ -77,11 +80,12 @@ public class SocketBufferWrapper {
         if (this.writeBufferConfiguredForWrite != writeBufferConfiguredForWrite) {
             if (writeBufferConfiguredForWrite) {
                 // Switching to write
-                int remaining = writeBuffer.remaining();
+                int remaining = writeBuffer.remaining(); // bytes remaing to be read
                 if (remaining == 0) {
                     writeBuffer.clear();
                 } else {
-                    writeBuffer.compact();
+                    writeBuffer.compact(); // move all unread data to front and palce pos at end of unread data , limit
+                                           // = cap;
                     writeBuffer.position(remaining);
                     writeBuffer.limit(writeBuffer.capacity());
                 }
@@ -95,9 +99,9 @@ public class SocketBufferWrapper {
 
     public boolean isWriteBufferWritable() {
         if (writeBufferConfiguredForWrite) {
-            return writeBuffer.hasRemaining();
+            return writeBuffer.hasRemaining(); // check if there is space for write (limit)
         } else {
-            return writeBuffer.remaining() == 0;
+            return writeBuffer.remaining() == 0; // only write if no data left for read
         }
     }
 
@@ -124,15 +128,67 @@ public class SocketBufferWrapper {
 
     public void expand(int newSize) {
         configureReadBufferForWrite();
-        //readBuffer = ByteBufferUtils.expand(readBuffer, newSize);
+        readBuffer = ByteBufferUtility.expand(readBuffer, newSize);
         configureWriteBufferForWrite();
-        //writeBuffer = ByteBufferUtils.expand(writeBuffer, newSize);
+        writeBuffer = ByteBufferUtility.expand(writeBuffer, newSize);
     }
+
+    public void unReadReadBuffer(ByteBuffer returnedData) {
+        if (isReadBufferEmpty()) {
+            configureReadBufferForWrite();
+            readBuffer.put(returnedData);
+        } else {
+            int bytesReturned = returnedData.remaining();
+
+            if (readBufferConfiguredForWrite) {
+
+                if (readBuffer.position() + bytesReturned > readBuffer.capacity()) {
+                    throw new BufferOverflowException();
+                } else {
+                    // moving bytes up in reverse order to protect overflow
+                    for (int i = readBuffer.position() - 1; i >= 0; i--) {
+                        readBuffer.put(i + bytesReturned, readBuffer.get(i));
+                    }
+
+                    // Insert bytes in front
+
+                    for (int i = 0; i < bytesReturned; i++) {
+                        readBuffer.put(i, returnedData.get());
+                    }
+
+                    // Update the position
+                    readBuffer.position(readBuffer.position() + bytesReturned);
+                }
+            } else { // In read Mode
+
+                // we need to shift bytesToShift by bytesReturned
+                int oldLimit = readBuffer.limit();
+                int oldPosition = readBuffer.position();
+                if (readBuffer.capacity() - readBuffer.limit() < bytesReturned) {
+                    throw new BufferOverflowException();
+                }
+
+                readBuffer.limit(oldLimit + bytesReturned);
+
+                for (int i = oldLimit - 1; i >= readBuffer.position(); i--) {
+                    readBuffer.put(bytesReturned + i, readBuffer.get(i)); // make bytesReturned spaces
+                }
+
+                // Insert returnedData
+                for (int i = oldPosition; i < oldPosition + bytesReturned; i++) {
+                    readBuffer.put(i, returnedData.get());
+                }
+
+                readBuffer.position(oldPosition);
+            }
+        }
+    }
+
 
     public void free() {
         if (direct) {
-           // ByteBufferUtils.cleanDirectBuffer(readBuffer);
-           // ByteBufferUtils.cleanDirectBuffer(writeBuffer);
+            ByteBufferUtility.clearDirectBuffer(readBuffer);
+            ByteBufferUtility.clearDirectBuffer(writeBuffer);
         }
     }
 }
