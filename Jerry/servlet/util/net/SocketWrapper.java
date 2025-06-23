@@ -3,8 +3,10 @@ package servlet.util.net;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.CompletionHandler;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -343,4 +345,21 @@ public abstract class SocketWrapper<T> {
         return max;
     }
 
+    protected static boolean buffersArrayHasRemaining(ByteBuffer[] buffers, int offset, int length) {
+        for (int pos = offset; pos < offset + length; pos++) {
+            if (buffers[pos].hasRemaining()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /*
+     * protected abstract <A> OperationState<A> newOperationState(boolean read,
+     * ByteBuffer[] buffers, int offset,
+     * int length, BlockingMode block, long timeout, TimeUnit unit, A attachment,
+     * CompletionCheck check,
+     * CompletionHandler<Long,? super A> handler, Semaphore semaphore,
+     * VectoredIOCompletionHandler<A> completion);
+     */
 }
