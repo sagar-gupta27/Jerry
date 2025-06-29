@@ -14,10 +14,14 @@ public interface Log {
     void fatal(Object msg);
     void debug(Object msg);
 
+    void info(Object msg);
+
 
     void trace(Object msg , Throwable t);
     void warn(Object msg , Throwable t);
     void error(Object msg , Throwable t);
     void fatal(Object msg , Throwable t);
     void debug(Object msg , Throwable t);
+
+    void info(Object msg, Throwable t);
 }

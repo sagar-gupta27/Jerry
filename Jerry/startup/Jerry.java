@@ -25,8 +25,8 @@ public final class Jerry {
 
     private static volatile Jerry daemon = null;
 
-    private static final File jerryBaseFile;
-    private static final File jerryHomeFile;
+    private static final File mouseletBaseFile;
+    private static final File mouseletHomeFile;
     private static final Pattern PATH_PATTERN = Pattern.compile("(\"[^\"]*\")|(([^,])*)");
     // --> this parttern means start with " {anything except "} 0 or more time then
     // " OR match all characters except ,
@@ -77,15 +77,15 @@ public final class Jerry {
             }
         }
 
-        jerryHomeFile = homeFile;
-        System.setProperty(Constants.JERRY_HOME_PROPERTY, jerryHomeFile.getPath());
+        mouseletHomeFile = homeFile;
+        System.setProperty(Constants.JERRY_HOME_PROPERTY, mouseletHomeFile.getPath());
 
         // Setting Base
 
         String base = System.getProperty(Constants.JERRY_BASE_PROPERTY);
         File baseFile = null;
         if (base == null) {
-            jerryBaseFile = jerryHomeFile;
+            mouseletBaseFile = mouseletHomeFile;
         } else {
             File f = new File(base);
 
@@ -95,10 +95,18 @@ public final class Jerry {
                 baseFile = f.getAbsoluteFile();
             }
 
-            jerryBaseFile = baseFile;
+            mouseletBaseFile = baseFile;
         }
 
-        System.setProperty(Constants.JERRY_BASE_PROPERTY, jerryBaseFile.getPath());
+        System.setProperty(Constants.JERRY_BASE_PROPERTY, mouseletBaseFile.getPath());
+    }
+
+    public static File getMouseletHomeFile() {
+        return mouseletHomeFile;
+    }
+
+    public static File getMouseletBaseFile() {
+        return mouseletBaseFile;
     }
 
     private String replace(String str) {
@@ -125,9 +133,9 @@ public final class Jerry {
                 if (propName.isEmpty()) {
                     replacement = null;
                 } else if (propName == Constants.JERRY_HOME_PROPERTY) {
-                    replacement = getJerryHome();
+                    replacement = getMouseletHome();
                 } else if (propName == Constants.JERRY_BASE_PROPERTY) {
-                    replacement = getJerryBase();
+                    replacement = getMouseletBase();
                 } else {
                     replacement = System.getProperty(propName);
                 }
@@ -222,12 +230,12 @@ public final class Jerry {
         return result.toArray(new String[0]);
     }
 
-    public static String getJerryBase() {
-        return jerryBaseFile.getPath();
+    public static String getMouseletBase() {
+        return mouseletBaseFile.getPath();
     }
 
-    public static String getJerryHome() {
-        return jerryHomeFile.getPath();
+    public static String getMouseletHome() {
+        return mouseletHomeFile.getPath();
     }
 
     private void initClassLoaders() {

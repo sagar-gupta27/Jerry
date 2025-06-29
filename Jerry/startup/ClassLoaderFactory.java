@@ -191,10 +191,10 @@ public final class ClassLoaderFactory {
                 String msg = "Problem with directory[" + file + "] , exits[" + file.exists() + "],  canRead["
                         + file.canRead() + "], isDir[" + file.isDirectory() + "]";
 
-                File home = new File(Jerry.getJerryHome());
+                File home = new File(Jerry.getMouseletHome());
                 home = home.getCanonicalFile();
 
-                File base = new File(Jerry.getJerryBase());
+                File base = new File(Jerry.getMouseletBase());
                 base = base.getCanonicalFile();
 
                 File defaultVal = new File(base, "lib");

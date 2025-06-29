@@ -30,4 +30,8 @@ public interface Lifecycle {
 
     void stop() throws LifecycleException;
     void destroy() throws LifecycleException;
+
+    void init() throws LifecycleException;
+
+    void start() throws LifecycleException;
 }

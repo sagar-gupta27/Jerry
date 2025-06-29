@@ -107,4 +107,16 @@ public class JDKLog implements Log{
     static Log getInstance(String name) {
         return new JDKLog(name);
     }
+
+    @Override
+    public void info(Object msg) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'info'");
+    }
+
+    @Override
+    public void info(Object msg, Throwable t) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'info'");
+    }
 }

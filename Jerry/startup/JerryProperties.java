@@ -48,7 +48,7 @@ public class JerryProperties {
 
        if(inputStream == null){
           try {
-             File home = new File(Jerry.getJerryBase());
+              File home = new File(Jerry.getMouseletBase());
              File conf = new File(home, "conf");
              File propsFile = new File(conf, fileName);
              inputStream = new FileInputStream(propsFile);
