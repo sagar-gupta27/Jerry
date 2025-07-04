@@ -2,13 +2,14 @@ package startup;
 //Main servlet container class
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.util.concurrent.TimeUnit;
 
-import jerry.Digester;
+import servlet.util.digester.Digester;
 import jerry.ExceptionUtils;
 import logging.Log;
 import logging.LogFactory;
@@ -212,11 +213,60 @@ public class Mouselet {
     }
 
     void initStreams() {
+        System.setOut(new SystemLogHandler(System.out));
+        System.setErr(new SystemLogHandler(System.err));
     }
 
-    void initNaming() {
-
+    protected void initNaming() {
+        // Setting additional variables
+        if (!useNaming) {
+            log.info(sm.getString("mouselet.noNaming"));
+            System.setProperty("mouselet.useNaming", "false");
+        } else {
+            System.setProperty("mouselet.useNaming", "true");
+            String value = "org.apache.naming";
+            String oldValue = System.getProperty(javax.naming.Context.URL_PKG_PREFIXES);
+            if (oldValue != null) {
+                value = value + ":" + oldValue;
+            }
+            System.setProperty(javax.naming.Context.URL_PKG_PREFIXES, value);
+            if (log.isDebugEnabled()) {
+                log.debug(sm.getString("mouselet.namingPrefix", value));
+            }
+            value = System.getProperty(javax.naming.Context.INITIAL_CONTEXT_FACTORY);
+            if (value == null) {
+                System.setProperty(javax.naming.Context.INITIAL_CONTEXT_FACTORY,
+                        "org.apache.naming.java.javaURLContextFactory");
+            } else {
+                log.debug(sm.getString("mouselet.initialContextFactory", value));
+            }
+        }
     }
+
+    protected void generateLoader() {
+        String loaderClassName = "DigesterGeneratedCodeLoader";
+        StringBuilder code = new StringBuilder();
+        code.append("package ").append(generatedCodePackage).append(';').append(System.lineSeparator());
+        code.append("public class ").append(loaderClassName);
+        code.append(" implements org.apache.tomcat.util.digester.Digester.GeneratedCodeLoader {")
+                .append(System.lineSeparator());
+        code.append("public Object loadGeneratedCode(String className) {").append(System.lineSeparator());
+        code.append("switch (className) {").append(System.lineSeparator());
+        for (String generatedClassName : Digester.getGeneratedClasses()) {
+            code.append("case \"").append(generatedClassName).append("\" : return new ").append(generatedClassName);
+            code.append("();").append(System.lineSeparator());
+        }
+        code.append("default: return null; }").append(System.lineSeparator());
+        code.append("}}").append(System.lineSeparator());
+        File loaderLocation = new File(generatedCodeLocation, generatedCodePackage);
+        try (FileWriter writer = new FileWriter(new File(loaderLocation, loaderClassName + ".java"))) {
+            writer.write(code.toString());
+        } catch (IOException e) {
+            // Should not happen
+            log.debug(sm.getString("catalina.loaderWriteFail"), e);
+        }
+    }
+
 
     // stop existing server instance
     public void stop() {

@@ -62,4 +62,8 @@ public class StringManager {
     public String getString(String key , Object obj){
         return null;
     }
+
+    public String getString(final String key, final Object... args) {
+        return null;
+    }
 }
